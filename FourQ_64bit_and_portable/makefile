@@ -112,13 +112,20 @@ OBJECTS_FP_TEST=fp_tests.o $(OBJECTS) test_extras.o
 OBJECTS_ECC_TEST=ecc_tests.o $(OBJECTS) test_extras.o 
 OBJECTS_CRYPTO_TEST=crypto_tests.o $(OBJECTS) test_extras.o 
 OBJECTS_ALL=$(OBJECTS) $(OBJECTS_FP_TEST) $(OBJECTS_ECC_TEST) $(OBJECTS_CRYPTO_TEST)
+OBJECTS_TEST=testo.o $(OBJECTS)
 
-all: crypto_test ecc_test fp_test $(SHARED_LIB_O)
+all: testo crypto_test ecc_test fp_test $(SHARED_LIB_O)
 
 ifeq "$(SHARED_LIB)" "TRUE"
     $(SHARED_LIB_O): $(OBJECTS)
 	    $(CC) -shared -o $(SHARED_LIB_O) $(OBJECTS)
 endif
+
+
+testo: $(OBJECTS_TEST)
+	echo $(OBJECTS_CRYPTO_TEST)
+	$(CC) -o testo $(OBJECTS_TEST) $(ARM_SETTING)
+
 
 crypto_test: $(OBJECTS_CRYPTO_TEST)
 	$(CC) -o crypto_test $(OBJECTS_CRYPTO_TEST) $(ARM_SETTING)
@@ -181,8 +188,13 @@ ecc_tests.o: tests/ecc_tests.c
 fp_tests.o: tests/fp_tests.c
 	$(CC) $(CFLAGS) tests/fp_tests.c
 
+testo.o: tests/testo.c
+	$(CC) $(CFLAGS) tests/testo.c
+
+
+
 .PHONY: clean
 
 clean:
-	rm -rf $(SHARED_LIB_TARGET) crypto_test ecc_test fp_test *.o AMD64/consts.s
+	rm -rf $(SHARED_LIB_TARGET) crypto_test testo ecc_test fp_test *.o AMD64/consts.s
 

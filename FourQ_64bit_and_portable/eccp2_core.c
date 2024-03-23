@@ -390,33 +390,41 @@ bool ecc_mul_fixed(digit_t* k, point_t Q)
     unsigned int digit = 0, digits[NBITS_ORDER_PLUS_ONE+(W_FIXEDBASE*V_FIXEDBASE)-1] = {0}; 
     digit_t temp[NWORDS_ORDER];
     point_extproj_t R;
-    point_precomp_t S;
+    point_precomp_t precomputed_point;
     int i, ii;
 
-	modulo_order(k, temp);                                      // temp = k mod (order) 
+    //Make sure k is within valid range and store in tenp
+	modulo_order(k, temp);                                      // temp = k mod (order)
+    //Convert temp to odd representation
 	conversion_to_odd(temp, temp);                              // Converting scalar to odd using the prime subgroup order
-	mLSB_set_recode((uint64_t*)temp, digits);                   // Scalar recoding
+    //Recode to least significant bit and save in digits
+    mLSB_set_recode((uint64_t*)temp, digits);                   // Scalar recoding
 
-    // Extracting initial digit 
+    // temp is now suitable for "comb method"
+
+
+    // Extracting initial digit
+    //Needed to initize point R with pre-computed point from fixed-base table. - Staring point of multiplication.
     digit = digits[w*d-1];
-    for (i = (int)((w-1)*d-1); i >= (int)(2*d-1); i = i-d)           
+    for (i = (int)((w-1)*d-1); i >= (int)(2*d-1); i = i-d)
     {
         digit = 2*digit + digits[i];
     }
     // Initialize R = (x+y,y-x,2dt) with a point from the table
-	table_lookup_fixed_base(((point_precomp_t*)&FIXED_BASE_TABLE)+(v-1)*(1 << (w-1)), S, digit, digits[d-1]);
-    R5_to_R1(S, R);                                             // Converting to representation (X:Y:1:Ta:Tb)
+	table_lookup_fixed_base(((point_precomp_t*)&FIXED_BASE_TABLE)+(v-1)*(1 << (w-1)), precomputed_point, digit, digits[d-1]);
+    R5_to_R1(precomputed_point, R);                                             // Converting to representation (X:Y:1:Ta:Tb)
 
+    //Main loop
     for (j = 0; j < (v-1); j++)
     {
         digit = digits[w*d-(j+1)*e-1];
-        for (i = (int)((w-1)*d-(j+1)*e-1); i >= (int)(2*d-(j+1)*e-1); i = i-d)           
+        for (i = (int)((w-1)*d-(j+1)*e-1); i >= (int)(2*d-(j+1)*e-1); i = i-d)
         {
             digit = 2*digit + digits[i];
         }
         // Extract point in (x+y,y-x,2dt) representation
-        table_lookup_fixed_base(((point_precomp_t*)&FIXED_BASE_TABLE)+(v-j-2)*(1 << (w-1)), S, digit, digits[d-(j+1)*e-1]);
-        eccmadd(S, R);                                          // R = R+S using representations (X,Y,Z,Ta,Tb) <- (X,Y,Z,Ta,Tb) + (x+y,y-x,2dt) 
+        table_lookup_fixed_base(((point_precomp_t*)&FIXED_BASE_TABLE)+(v-j-2)*(1 << (w-1)), precomputed_point, digit, digits[d-(j+1)*e-1]);
+        eccmadd(precomputed_point, R);                                          // R = R+S using representations (X,Y,Z,Ta,Tb) <- (X,Y,Z,Ta,Tb) + (x+y,y-x,2dt)
     }
 
     for (ii = (e-2); ii >= 0; ii--)
@@ -425,16 +433,16 @@ bool ecc_mul_fixed(digit_t* k, point_t Q)
         for (j = 0; j < v; j++)
         {
             digit = digits[w*d-j*e+ii-e];
-            for (i = (int)((w-1)*d-j*e+ii-e); i >= (int)(2*d-j*e+ii-e); i = i-d)           
+            for (i = (int)((w-1)*d-j*e+ii-e); i >= (int)(2*d-j*e+ii-e); i = i-d)
             {
                 digit = 2*digit + digits[i];
             }
             // Extract point in (x+y,y-x,2dt) representation
-            table_lookup_fixed_base(((point_precomp_t*)&FIXED_BASE_TABLE)+(v-j-1)*(1 << (w-1)), S, digit, digits[d-j*e+ii-e]);
-            eccmadd(S, R);                                      // R = R+S using representations (X,Y,Z,Ta,Tb) <- (X,Y,Z,Ta,Tb) + (x+y,y-x,2dt)
+            table_lookup_fixed_base(((point_precomp_t*)&FIXED_BASE_TABLE)+(v-j-1)*(1 << (w-1)), precomputed_point, digit, digits[d-j*e+ii-e]);
+            eccmadd(precomputed_point, R);                                      // R = R+S using representations (X,Y,Z,Ta,Tb) <- (X,Y,Z,Ta,Tb) + (x+y,y-x,2dt)
         }        
     }     
-    eccnorm(R, Q);                                              // Conversion to affine coordinates (x,y) and modular correction. 
+    eccnorm(R, Q);                                              // Conversion to affine coordinates (x,y) and modular correction.
     
 #ifdef TEMP_ZEROING
     clear_words((void*)digits, NBITS_ORDER_PLUS_ONE+(W_FIXEDBASE*V_FIXEDBASE)-1);
