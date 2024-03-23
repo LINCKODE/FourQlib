@@ -1,0 +1,2 @@
+make clean
+make ARCH=x64 AVX=FALSE AVX2=FALSE GENERIC=TRUE
